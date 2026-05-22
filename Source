@@ -16,10 +16,37 @@ local Icons = (successIcons and type(Lucide) == "table") and Lucide or setmetata
 
 -- Variáveis Globais de Estado da UI
 local Initialized = false
-local ScreenGui, Escurecer, Toolbar, DockContainer
+local ScreenGui, Escurecer, Toolbar, MainContent, DockContainer, InfoContainer, ExpandBtn
 local JanelaAberta = nil
 local BarraOn = true
+local IsExpanded = false
 local LayoutOrderCount = 0
+local WindowConfig = {}
+
+local function UpdateToolbarWidth()
+    if not Toolbar then return end
+    
+    local dockWidth = DockContainer.Size.X.Offset
+    local expandBtnWidth = 32
+    local infoWidth = IsExpanded and 120 or 0
+    local padding = 16 
+
+    local totalWidth = dockWidth + padding + expandBtnWidth
+    if IsExpanded then
+        totalWidth = totalWidth + infoWidth
+    end
+    totalWidth = totalWidth + 16 -- padding interno
+
+    TweenService:Create(Toolbar, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, totalWidth, 0, 45)
+    }):Play()
+
+    if InfoContainer then
+        TweenService:Create(InfoContainer, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, infoWidth, 1, 0)
+        }):Play()
+    end
+end
 
 local function ToggleWindow(alvo)
     local anim = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -36,20 +63,37 @@ local function ToggleWindow(alvo)
         end
         alvo.Visible = true
         JanelaAberta = alvo
-        TweenService:Create(Escurecer, TweenInfo.new(0.3), {BackgroundTransparency = 0.5}):Play()
+        TweenService:Create(Escurecer, TweenInfo.new(0.3), {BackgroundTransparency = WindowConfig.Transparent and 0.4 or 0.6}):Play()
         local alturaReal = alvo:GetChildren()[1].Size.Y.Offset
         TweenService:Create(alvo, anim, {Size = UDim2.new(0, 380, 0, alturaReal)}):Play()
     end
 end
 
--- Inicializa a Base da UI (Dock) apenas 1 vez
-local function InitBase()
-    if Initialized then return end
+-- ==============================================
+-- CLASSE WINDOW (Nova função principal)
+-- ==============================================
+function TopPlusUi:CreateWindow(config)
+    if Initialized then return self end
     Initialized = true
+
+    WindowConfig = {
+        Title = config.Title or "Hub",
+        Author = config.Author or "Snow",
+        Transparent = config.Transparent or false,
+        Theme = config.Theme or "Dark",
+        ShowWindow = config.ShowWindow == nil and true or config.ShowWindow
+    }
 
     if CoreGui:FindFirstChild("TopPlusUI") then
         CoreGui.TopPlusUI:Destroy()
     end
+
+    -- Definição de Tema
+    local bgColor = WindowConfig.Theme == "Light" and Color3.fromRGB(240, 240, 240) or Color3.fromRGB(15, 15, 15)
+    local strokeColor = WindowConfig.Theme == "Light" and Color3.fromRGB(200, 200, 200) or Color3.fromRGB(45, 45, 45)
+    local textColor = WindowConfig.Theme == "Light" and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
+    local subTextColor = WindowConfig.Theme == "Light" and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(140, 140, 140)
+    local bgAlpha = WindowConfig.Transparent and 0.25 or 0
 
     ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "TopPlusUI"
@@ -67,25 +111,100 @@ local function InitBase()
     Toolbar = Instance.new("Frame", ScreenGui)
     Toolbar.Size = UDim2.new(0, 50, 0, 45)
     Toolbar.AnchorPoint = Vector2.new(0.5, 1)
-    Toolbar.Position = UDim2.new(0.5, 0, 1, -20)
-    Toolbar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Toolbar.Position = WindowConfig.ShowWindow and UDim2.new(0.5, 0, 1, -20) or UDim2.new(0.5, 0, 1, 60)
+    Toolbar.BackgroundColor3 = bgColor
+    Toolbar.BackgroundTransparency = bgAlpha
     Toolbar.ZIndex = 5
-    Toolbar.ClipsDescendants = false -- Precisa ser false para a seta aparecer fora da barra
+    Toolbar.ClipsDescendants = false 
     Instance.new("UICorner", Toolbar).CornerRadius = UDim.new(0, 12)
-    Instance.new("UIStroke", Toolbar).Color = Color3.fromRGB(45, 45, 45)
+    Instance.new("UIStroke", Toolbar).Color = strokeColor
 
-    DockContainer = Instance.new("Frame", Toolbar)
-    DockContainer.Size = UDim2.new(1, 0, 1, 0)
+    -- Container Interno da Toolbar
+    MainContent = Instance.new("Frame", Toolbar)
+    MainContent.Size = UDim2.new(1, 0, 1, 0)
+    MainContent.BackgroundTransparency = 1
+    
+    local layoutMain = Instance.new("UIListLayout", MainContent)
+    layoutMain.FillDirection = Enum.FillDirection.Horizontal
+    layoutMain.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layoutMain.VerticalAlignment = Enum.VerticalAlignment.Center
+    layoutMain.Padding = UDim.new(0, 8)
+    layoutMain.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- Container de Tabs
+    DockContainer = Instance.new("Frame", MainContent)
+    DockContainer.Size = UDim2.new(0, 0, 1, 0)
     DockContainer.BackgroundTransparency = 1
+    DockContainer.LayoutOrder = 1
     
     local dockLayout = Instance.new("UIListLayout", DockContainer)
     dockLayout.FillDirection = Enum.FillDirection.Horizontal
-    dockLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    dockLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
     dockLayout.VerticalAlignment = Enum.VerticalAlignment.Center
     dockLayout.Padding = UDim.new(0, 8)
     dockLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    -- Botão da Seta (Toggle Bar)
+    -- Sincroniza o tamanho do Dock automaticamente
+    dockLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        DockContainer.Size = UDim2.new(0, dockLayout.AbsoluteContentSize.X, 1, 0)
+        UpdateToolbarWidth()
+    end)
+
+    -- Botão de Expandir Header (Seta da Direita)
+    ExpandBtn = Instance.new("ImageButton", MainContent)
+    ExpandBtn.Size = UDim2.new(0, 32, 0, 32)
+    ExpandBtn.BackgroundColor3 = WindowConfig.Theme == "Light" and Color3.fromRGB(220, 220, 220) or Color3.fromRGB(30, 30, 30)
+    ExpandBtn.BackgroundTransparency = bgAlpha
+    ExpandBtn.LayoutOrder = 2
+    Instance.new("UICorner", ExpandBtn).CornerRadius = UDim.new(0, 8)
+    
+    local ExpandIcon = Instance.new("ImageLabel", ExpandBtn)
+    ExpandIcon.Size = UDim2.new(0, 18, 0, 18)
+    ExpandIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+    ExpandIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ExpandIcon.BackgroundTransparency = 1
+    ExpandIcon.Image = Icons["chevron-right"] or ""
+    ExpandIcon.ImageColor3 = textColor
+
+    -- Container de Info (Autor e Hub)
+    InfoContainer = Instance.new("Frame", MainContent)
+    InfoContainer.Size = UDim2.new(0, 0, 1, 0)
+    InfoContainer.BackgroundTransparency = 1
+    InfoContainer.ClipsDescendants = true
+    InfoContainer.LayoutOrder = 3
+
+    local InfoLayout = Instance.new("UIListLayout", InfoContainer)
+    InfoLayout.FillDirection = Enum.FillDirection.Vertical
+    InfoLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    InfoLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    InfoLayout.Padding = UDim.new(0, 2)
+    Instance.new("UIPadding", InfoContainer).PaddingLeft = UDim.new(0, 5)
+
+    local LblTitle = Instance.new("TextLabel", InfoContainer)
+    LblTitle.Size = UDim2.new(1, 0, 0, 16)
+    LblTitle.BackgroundTransparency = 1
+    LblTitle.Text = WindowConfig.Title
+    LblTitle.TextColor3 = textColor
+    LblTitle.FontFace = FontUI
+    LblTitle.TextSize = 15
+    LblTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local LblAuthor = Instance.new("TextLabel", InfoContainer)
+    LblAuthor.Size = UDim2.new(1, 0, 0, 12)
+    LblAuthor.BackgroundTransparency = 1
+    LblAuthor.Text = "by " .. WindowConfig.Author
+    LblAuthor.TextColor3 = subTextColor
+    LblAuthor.FontFace = FontUI
+    LblAuthor.TextSize = 11
+    LblAuthor.TextXAlignment = Enum.TextXAlignment.Left
+
+    ExpandBtn.MouseButton1Click:Connect(function()
+        IsExpanded = not IsExpanded
+        ExpandIcon.Image = IsExpanded and Icons["chevron-left"] or Icons["chevron-right"]
+        UpdateToolbarWidth()
+    end)
+
+    -- Seta de Esconder UI Inteira (Fora da Toolbar)
     local BtnToggleBar = Instance.new("ImageButton", Toolbar)
     BtnToggleBar.Size = UDim2.new(0, 24, 0, 24)
     BtnToggleBar.AnchorPoint = Vector2.new(0.5, 1)
@@ -94,6 +213,9 @@ local function InitBase()
     BtnToggleBar.Image = Icons["chevron-down"] or ""
     BtnToggleBar.ImageColor3 = Color3.fromRGB(180, 180, 180)
     BtnToggleBar.ZIndex = 6
+
+    BarraOn = WindowConfig.ShowWindow
+    BtnToggleBar.Image = BarraOn and Icons["chevron-down"] or Icons["chevron-up"]
 
     BtnToggleBar.MouseButton1Click:Connect(function()
         BarraOn = not BarraOn
@@ -105,6 +227,8 @@ local function InitBase()
             ToggleWindow(JanelaAberta) 
         end
     end)
+
+    return self
 end
 
 -- ==============================================
@@ -114,14 +238,22 @@ local TabClass = {}
 TabClass.__index = TabClass
 
 function TopPlusUi:Tab(options)
-    InitBase()
+    -- Fallback caso o CreateWindow não tenha sido chamado
+    if not Initialized then
+        self:CreateWindow({Title = "Hub", Author = "Unknown"})
+    end
+
     LayoutOrderCount = LayoutOrderCount + 1
 
     local titulo = options.Title or "Tab"
     local icone = options.Icon or "layout-grid"
-    local alturaJanela = options.Height or 350 -- Aqui define a altura personalizada, ou 350 se não colocar nada
+    local alturaJanela = options.Height or 350 
+    
+    local winBgColor = WindowConfig.Theme == "Light" and Color3.fromRGB(240, 240, 240) or Color3.fromRGB(18, 18, 18)
+    local winStrokeColor = WindowConfig.Theme == "Light" and Color3.fromRGB(200, 200, 200) or Color3.fromRGB(50, 50, 50)
+    local textColor = WindowConfig.Theme == "Light" and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
 
-    -- Cria o Botão na Dock
+    -- Botão na Dock
     local btn = Instance.new("TextButton", DockContainer)
     btn.Size = UDim2.new(0, 32, 0, 32)
     btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -130,8 +262,6 @@ function TopPlusUi:Tab(options)
     btn.ZIndex = 7
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     
-    Toolbar.Size = UDim2.new(0, (LayoutOrderCount * 40) + 16, 0, 45)
-
     local grad = Instance.new("UIGradient", btn)
     grad.Rotation = 45
     grad.Color = LayoutOrderCount == 1 and ColorSequence.new(Color3.fromRGB(12,12,12), Color3.fromRGB(240,240,240)) or ColorSequence.new(Color3.fromRGB(30,30,30), Color3.fromRGB(80,80,80))
@@ -145,7 +275,7 @@ function TopPlusUi:Tab(options)
     ic.ImageColor3 = Color3.fromRGB(255,255,255)
     ic.ZIndex = 8
 
-    -- Cria a Janela Física
+    -- Janela
     local mascara = Instance.new("Frame", ScreenGui)
     mascara.AnchorPoint = Vector2.new(0.5, 1)
     mascara.Position = UDim2.new(0.5, 0, 1, -72)
@@ -158,17 +288,18 @@ function TopPlusUi:Tab(options)
     local frame = Instance.new("Frame", mascara)
     frame.AnchorPoint = Vector2.new(0.5, 1)
     frame.Position = UDim2.new(0.5, 0, 1, 0)
-    frame.Size = UDim2.new(0, 380, 0, alturaJanela) -- Usando a altura personalizada
-    frame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+    frame.Size = UDim2.new(0, 380, 0, alturaJanela)
+    frame.BackgroundColor3 = winBgColor
+    frame.BackgroundTransparency = WindowConfig.Transparent and 0.15 or 0
     frame.ZIndex = 10
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-    Instance.new("UIStroke", frame).Color = Color3.fromRGB(50, 50, 50)
+    Instance.new("UIStroke", frame).Color = winStrokeColor
     
     local tl = Instance.new("TextLabel", frame)
     tl.Size = UDim2.new(1, 0, 0, 45)
     tl.BackgroundTransparency = 1
     tl.Text = titulo
-    tl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tl.TextColor3 = textColor
     tl.FontFace = FontUI
     tl.TextSize = 22
     tl.ZIndex = 11
@@ -203,27 +334,28 @@ end
 -- ==============================================
 -- COMPONENTES DA TAB (Button & Toggle)
 -- ==============================================
-
 function TabClass:Button(options)
     self.ItemCount = self.ItemCount + 1
+    local isLight = WindowConfig.Theme == "Light"
 
     local card = Instance.new("TextButton", self.Container)
     card.Size = UDim2.new(0, 340, 0, 55)
-    card.BackgroundColor3 = Color3.fromRGB(22, 22, 25)
+    card.BackgroundColor3 = isLight and Color3.fromRGB(220, 220, 225) or Color3.fromRGB(22, 22, 25)
+    card.BackgroundTransparency = WindowConfig.Transparent and 0.2 or 0
     card.Text = ""
     card.AutoButtonColor = false
     card.LayoutOrder = self.ItemCount
     card.ZIndex = 12
     Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8)
     local stroke = Instance.new("UIStroke", card)
-    stroke.Color = Color3.fromRGB(45, 45, 50)
+    stroke.Color = isLight and Color3.fromRGB(180, 180, 185) or Color3.fromRGB(45, 45, 50)
 
     local lblTitulo = Instance.new("TextLabel", card)
     lblTitulo.Size = UDim2.new(1, -20, 0, 18)
     lblTitulo.Position = UDim2.new(0, 10, 0, 8)
     lblTitulo.BackgroundTransparency = 1
     lblTitulo.Text = options.Title or "Button"
-    lblTitulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lblTitulo.TextColor3 = isLight and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
     lblTitulo.FontFace = FontUI
     lblTitulo.TextSize = 14
     lblTitulo.TextXAlignment = Enum.TextXAlignment.Left
@@ -234,7 +366,7 @@ function TabClass:Button(options)
     lblDesc.Position = UDim2.new(0, 10, 0, 28)
     lblDesc.BackgroundTransparency = 1
     lblDesc.Text = options.Desc or ""
-    lblDesc.TextColor3 = Color3.fromRGB(140, 140, 140)
+    lblDesc.TextColor3 = isLight and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(140, 140, 140)
     lblDesc.FontFace = FontUI
     lblDesc.TextSize = 12
     lblDesc.TextXAlignment = Enum.TextXAlignment.Left
@@ -246,38 +378,40 @@ function TabClass:Button(options)
     ic.Position = UDim2.new(1, -10, 0.5, 0)
     ic.BackgroundTransparency = 1
     ic.Image = Icons["mouse-pointer-click"]
-    ic.ImageColor3 = Color3.fromRGB(180, 180, 180)
+    ic.ImageColor3 = isLight and Color3.fromRGB(120, 120, 120) or Color3.fromRGB(180, 180, 180)
     ic.ZIndex = 13
 
-    card.MouseEnter:Connect(function() TweenService:Create(stroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(80, 80, 85)}):Play() end)
-    card.MouseLeave:Connect(function() TweenService:Create(stroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(45, 45, 50)}):Play() end)
+    card.MouseEnter:Connect(function() TweenService:Create(stroke, TweenInfo.new(0.2), {Color = isLight and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(80, 80, 85)}):Play() end)
+    card.MouseLeave:Connect(function() TweenService:Create(stroke, TweenInfo.new(0.2), {Color = isLight and Color3.fromRGB(180, 180, 185) or Color3.fromRGB(45, 45, 50)}):Play() end)
     
     card.MouseButton1Click:Connect(function()
-        local tw = TweenService:Create(card, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(35, 35, 40)})
+        local hoverColor = isLight and Color3.fromRGB(200, 200, 205) or Color3.fromRGB(35, 35, 40)
+        local baseColor = isLight and Color3.fromRGB(220, 220, 225) or Color3.fromRGB(22, 22, 25)
+        local tw = TweenService:Create(card, TweenInfo.new(0.1), {BackgroundColor3 = hoverColor})
         tw:Play()
         tw.Completed:Connect(function()
-            TweenService:Create(card, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(22, 22, 25)}):Play()
+            TweenService:Create(card, TweenInfo.new(0.1), {BackgroundColor3 = baseColor}):Play()
         end)
 
-        if options.Callback then
-            task.spawn(options.Callback)
-        end
+        if options.Callback then task.spawn(options.Callback) end
     end)
 end
 
 function TabClass:Toggle(options)
     self.ItemCount = self.ItemCount + 1
     local state = options.Value or false
+    local isLight = WindowConfig.Theme == "Light"
 
     local card = Instance.new("TextButton", self.Container)
     card.Size = UDim2.new(0, 340, 0, 60)
-    card.BackgroundColor3 = Color3.fromRGB(22, 22, 25)
+    card.BackgroundColor3 = isLight and Color3.fromRGB(220, 220, 225) or Color3.fromRGB(22, 22, 25)
+    card.BackgroundTransparency = WindowConfig.Transparent and 0.2 or 0
     card.Text = ""
     card.AutoButtonColor = false
     card.LayoutOrder = self.ItemCount
     card.ZIndex = 12
     Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", card).Color = Color3.fromRGB(45, 45, 50)
+    Instance.new("UIStroke", card).Color = isLight and Color3.fromRGB(180, 180, 185) or Color3.fromRGB(45, 45, 50)
 
     local textOffset = options.Icon and 35 or 10
 
@@ -287,7 +421,7 @@ function TabClass:Toggle(options)
         ic.Position = UDim2.new(0, 10, 0, 10)
         ic.BackgroundTransparency = 1
         ic.Image = Icons[options.Icon] or ""
-        ic.ImageColor3 = Color3.fromRGB(200, 200, 200)
+        ic.ImageColor3 = isLight and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(200, 200, 200)
         ic.ZIndex = 13
     end
 
@@ -296,7 +430,7 @@ function TabClass:Toggle(options)
     lblTitulo.Position = UDim2.new(0, textOffset, 0, 10)
     lblTitulo.BackgroundTransparency = 1
     lblTitulo.Text = options.Title or "Toggle"
-    lblTitulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lblTitulo.TextColor3 = isLight and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
     lblTitulo.FontFace = FontUI
     lblTitulo.TextSize = 14
     lblTitulo.TextXAlignment = Enum.TextXAlignment.Left
@@ -307,7 +441,7 @@ function TabClass:Toggle(options)
     lblDesc.Position = UDim2.new(0, 10, 0, 28)
     lblDesc.BackgroundTransparency = 1
     lblDesc.Text = options.Desc or ""
-    lblDesc.TextColor3 = Color3.fromRGB(140, 140, 140)
+    lblDesc.TextColor3 = isLight and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(140, 140, 140)
     lblDesc.FontFace = FontUI
     lblDesc.TextSize = 11
     lblDesc.TextWrapped = true
@@ -315,11 +449,12 @@ function TabClass:Toggle(options)
     lblDesc.TextYAlignment = Enum.TextYAlignment.Top
     lblDesc.ZIndex = 13
 
+    local offColor = isLight and Color3.fromRGB(180, 180, 180) or Color3.fromRGB(40, 40, 45)
     local switchBg = Instance.new("Frame", card)
     switchBg.Size = UDim2.new(0, 32, 0, 18)
     switchBg.AnchorPoint = Vector2.new(1, 0.5)
     switchBg.Position = UDim2.new(1, -10, 0.5, 0)
-    switchBg.BackgroundColor3 = state and Color3.fromRGB(70, 200, 70) or Color3.fromRGB(40, 40, 45)
+    switchBg.BackgroundColor3 = state and Color3.fromRGB(70, 200, 70) or offColor
     switchBg.ZIndex = 14
     Instance.new("UICorner", switchBg).CornerRadius = UDim.new(1, 0)
     
@@ -327,27 +462,22 @@ function TabClass:Toggle(options)
     circle.Size = UDim2.new(0, 14, 0, 14)
     circle.AnchorPoint = Vector2.new(0, 0.5)
     circle.Position = state and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-    circle.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+    circle.BackgroundColor3 = isLight and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(220, 220, 220)
     circle.ZIndex = 15
     Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
 
     local function updateVisual()
-        TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = state and Color3.fromRGB(70, 200, 70) or Color3.fromRGB(40, 40, 45)}):Play()
+        TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = state and Color3.fromRGB(70, 200, 70) or offColor}):Play()
         TweenService:Create(circle, TweenInfo.new(0.2), {Position = state and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)}):Play()
     end
 
     card.MouseButton1Click:Connect(function()
         state = not state
         updateVisual()
-        if options.Callback then
-            task.spawn(options.Callback, state)
-        end
+        if options.Callback then task.spawn(options.Callback, state) end
     end)
 
-    return {
-        Set = function(v) state = v; updateVisual() end,
-        Get = function() return state end
-    }
+    return { Set = function(v) state = v; updateVisual() end, Get = function() return state end }
 end
 
 return TopPlusUi
