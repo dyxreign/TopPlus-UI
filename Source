@@ -1,0 +1,418 @@
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local UILib = {
+    Windows = {},
+    JanelaAberta = nil,
+    BarraOn = true
+}
+
+-- Configuração de Fontes e Ícones
+local FONT_PATH = "rbxasset://fonts/families/AccanthisADFStd.json"
+UILib.Font = Font.new(FONT_PATH, Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+
+local successIcons, Lucide = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua"))()
+end)
+
+UILib.Lucide = (successIcons and type(Lucide) == "table") and Lucide or setmetatable({}, {__index = function() return "" end})
+
+-- Inicializa a UI Base (Dock e Fundo)
+function UILib:Init(config)
+    config = config or {}
+    local uiName = config.Name or "ExploitToolbar"
+    
+    local LocalPlayer = Players.LocalPlayer
+    local guiParent = (type(gethui) == "function" and gethui()) or (pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui")) or LocalPlayer:WaitForChild("PlayerGui")
+
+    if guiParent:FindFirstChild(uiName) then
+        guiParent[uiName]:Destroy()
+    end
+
+    self.ScreenGui = Instance.new("ScreenGui")
+    self.ScreenGui.Name = uiName
+    self.ScreenGui.IgnoreGuiInset = true 
+    self.ScreenGui.ResetOnSpawn = false
+    self.ScreenGui.Parent = guiParent
+
+    self.Escurecer = Instance.new("Frame", self.ScreenGui)
+    self.Escurecer.Size = UDim2.new(1, 0, 1, 0)
+    self.Escurecer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    self.Escurecer.BackgroundTransparency = 1 
+    self.Escurecer.BorderSizePixel = 0
+    self.Escurecer.ZIndex = 1
+
+    -- Toolbar (Dock)
+    self.Toolbar = Instance.new("Frame", self.ScreenGui)
+    self.Toolbar.Size = UDim2.new(0, 210, 0, 45)
+    self.Toolbar.AnchorPoint = Vector2.new(0.5, 1)
+    self.Toolbar.Position = UDim2.new(0.5, 0, 1, 60)
+    self.Toolbar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    self.Toolbar.ZIndex = 5
+    Instance.new("UICorner", self.Toolbar).CornerRadius = UDim.new(0, 12)
+    Instance.new("UIStroke", self.Toolbar).Color = Color3.fromRGB(45, 45, 45)
+
+    self.DockContainer = Instance.new("Frame", self.Toolbar)
+    self.DockContainer.Size = UDim2.new(1, 0, 1, 0)
+    self.DockContainer.BackgroundTransparency = 1
+    self.DockContainer.ZIndex = 6
+    
+    local dockLayout = Instance.new("UIListLayout", self.DockContainer)
+    dockLayout.FillDirection = Enum.FillDirection.Horizontal
+    dockLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    dockLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    dockLayout.Padding = UDim.new(0, 8)
+    dockLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- Botão de Toggle da Toolbar
+    self.BtnToggleBar = Instance.new("ImageButton", self.Toolbar)
+    self.BtnToggleBar.Size = UDim2.new(0, 24, 0, 24)
+    self.BtnToggleBar.AnchorPoint = Vector2.new(0.5, 1)
+    self.BtnToggleBar.Position = UDim2.new(0.5, 0, 0, -6)
+    self.BtnToggleBar.BackgroundTransparency = 1
+    self.BtnToggleBar.Image = self.Lucide["chevron-down"]
+    self.BtnToggleBar.ImageColor3 = Color3.fromRGB(180, 180, 180)
+    self.BtnToggleBar.ZIndex = 6
+
+    self.BtnToggleBar.MouseButton1Click:Connect(function()
+        self.BarraOn = not self.BarraOn
+        self.BtnToggleBar.Image = self.BarraOn and self.Lucide["chevron-down"] or self.Lucide["chevron-up"]
+        TweenService:Create(self.Toolbar, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = self.BarraOn and UDim2.new(0.5, 0, 1, -20) or UDim2.new(0.5, 0, 1, 60)
+        }):Play()
+        if not self.BarraOn and self.JanelaAberta then self:ToggleWindow(self.JanelaAberta) end
+    end)
+
+    task.wait(0.5)
+    TweenService:Create(self.Toolbar, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 1, -20)}):Play()
+end
+
+-- Sistema de Notificação
+function UILib:Notify(titulo, descricao, tipo, duracao)
+    tipo = tipo or "info"
+    duracao = duracao or 4
+    local cores = {
+        info = {icone = "rbxassetid://7300474341", cor = Color3.fromRGB(100, 180, 255)},
+        success = {icone = "rbxassetid://7300477546", cor = Color3.fromRGB(80, 220, 100)},
+        warning = {icone = "rbxassetid://7300475140", cor = Color3.fromRGB(255, 180, 50)}
+    }
+    local configAtual = cores[tipo] or cores.info
+
+    local notif = Instance.new("Frame", self.ScreenGui)
+    notif.Size = UDim2.new(0, 280, 0, 65)
+    notif.Position = UDim2.new(1, 300, 1, -155)
+    notif.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    notif.ZIndex = 1000
+    Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", notif).Color = Color3.fromRGB(45, 45, 50)
+
+    local lblTitulo = Instance.new("TextLabel", notif)
+    lblTitulo.Size = UDim2.new(1, -50, 0, 18)
+    lblTitulo.Position = UDim2.new(0, 42, 0, 10)
+    lblTitulo.BackgroundTransparency = 1
+    lblTitulo.Text = titulo
+    lblTitulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lblTitulo.FontFace = self.Font
+    lblTitulo.TextSize = 14
+    lblTitulo.TextXAlignment = Enum.TextXAlignment.Left
+    lblTitulo.ZIndex = 1001
+
+    TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(1, -295, 1, -155)
+    }):Play()
+
+    task.delay(duracao, function()
+        local tw = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(1, 300, 1, -155)})
+        tw:Play()
+        tw.Completed:Connect(function() notif:Destroy() end)
+    end)
+end
+
+-- Sistema de Dialog (Avisos)
+function UILib:Dialog(titulo, descricao, btnText, callback)
+    local db = Instance.new("Frame", self.ScreenGui)
+    db.Size = UDim2.new(0, 320, 0, 160)
+    db.Position = UDim2.new(0.5, 0, 0.5, 0)
+    db.AnchorPoint = Vector2.new(0.5, 0.5)
+    db.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    db.ZIndex = 500
+    Instance.new("UICorner", db).CornerRadius = UDim.new(0, 10)
+    Instance.new("UIStroke", db).Color = Color3.fromRGB(60, 60, 65)
+
+    local title = Instance.new("TextLabel", db)
+    title.Size = UDim2.new(1, -40, 0, 35)
+    title.Position = UDim2.new(0, 35, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = titulo
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.FontFace = self.Font
+    title.TextSize = 16
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 501
+
+    local desc = Instance.new("TextLabel", db)
+    desc.Size = UDim2.new(1, -24, 0, 60)
+    desc.Position = UDim2.new(0, 12, 0, 45)
+    desc.BackgroundTransparency = 1
+    desc.Text = descricao
+    desc.TextColor3 = Color3.fromRGB(180, 180, 180)
+    desc.FontFace = self.Font
+    desc.TextSize = 14
+    desc.TextWrapped = true
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.ZIndex = 501
+
+    local btnBack = Instance.new("TextButton", db)
+    btnBack.Size = UDim2.new(0, 80, 0, 30)
+    btnBack.Position = UDim2.new(1, -185, 1, -40)
+    btnBack.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    btnBack.Text = "Back"
+    btnBack.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnBack.FontFace = self.Font
+    btnBack.ZIndex = 501
+    Instance.new("UICorner", btnBack).CornerRadius = UDim.new(0, 6)
+
+    local btnContinue = Instance.new("TextButton", db)
+    btnContinue.Size = UDim2.new(0, 85, 0, 30)
+    btnContinue.Position = UDim2.new(1, -95, 1, -40)
+    btnContinue.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    btnContinue.Text = btnText or "Continue"
+    btnContinue.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnContinue.FontFace = self.Font
+    btnContinue.ZIndex = 501
+    Instance.new("UICorner", btnContinue).CornerRadius = UDim.new(0, 6)
+
+    btnBack.MouseButton1Click:Connect(function() db:Destroy() end)
+    btnContinue.MouseButton1Click:Connect(function() 
+        db:Destroy()
+        if callback then callback() end
+    end)
+end
+
+-- Lógica Interna de Alternar Janelas
+function UILib:ToggleWindow(mascara)
+    local anim = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    if self.JanelaAberta == mascara then
+        TweenService:Create(self.Escurecer, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        local tw = TweenService:Create(mascara, anim, {Size = UDim2.new(0, 0, 0, 0)})
+        tw:Play()
+        tw.Completed:Connect(function() mascara.Visible = false end)
+        self.JanelaAberta = nil
+    else
+        if self.JanelaAberta then 
+            self.JanelaAberta.Visible = false
+            self.JanelaAberta.Size = UDim2.new(0, 0, 0, 0) 
+        end
+        mascara.Visible = true
+        self.JanelaAberta = mascara
+        TweenService:Create(self.Escurecer, TweenInfo.new(0.3), {BackgroundTransparency = 0.5}):Play()
+        local alturaReal = mascara:GetChildren()[1].Size.Y.Offset
+        TweenService:Create(mascara, anim, {Size = UDim2.new(0, 380, 0, alturaReal)}):Play()
+    end
+end
+
+-- Criação de Janelas (Retorna os métodos da aba)
+function UILib:CreateWindow(config)
+    local mascara = Instance.new("Frame", self.ScreenGui)
+    mascara.AnchorPoint = Vector2.new(0.5, 1)
+    mascara.Position = UDim2.new(0.5, 0, 1, -72)
+    mascara.Size = UDim2.new(0, 0, 0, 0)
+    mascara.BackgroundTransparency = 1
+    mascara.ClipsDescendants = true
+    mascara.Visible = false
+    mascara.ZIndex = 10
+    
+    local frame = Instance.new("Frame", mascara)
+    frame.AnchorPoint = Vector2.new(0.5, 1)
+    frame.Position = UDim2.new(0.5, 0, 1, 0)
+    frame.Size = UDim2.new(0, 380, 0, config.Height or 250)
+    frame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+    frame.ZIndex = 10
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+    Instance.new("UIStroke", frame).Color = Color3.fromRGB(50, 50, 50)
+    
+    local tl = Instance.new("TextLabel", frame)
+    tl.Size = UDim2.new(1, 0, 0, 45)
+    tl.BackgroundTransparency = 1
+    tl.Text = config.Title or "Window"
+    tl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tl.FontFace = self.Font
+    tl.TextSize = 22
+    tl.ZIndex = 11
+
+    local container = Instance.new("ScrollingFrame", frame)
+    container.Size = UDim2.new(1, 0, 1, -50)
+    container.Position = UDim2.new(0, 0, 0, 45)
+    container.BackgroundTransparency = 1
+    container.ScrollBarThickness = 2
+    container.ZIndex = 11
+    
+    local layout = Instance.new("UIListLayout", container)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 8)
+
+    -- Adiciona o botão na Dock
+    local btn = Instance.new("TextButton", self.DockContainer)
+    btn.Size = UDim2.new(0, 32, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = ""
+    btn.LayoutOrder = config.Order or 1
+    btn.ZIndex = 7
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    local grad = Instance.new("UIGradient", btn)
+    grad.Rotation = 45
+    grad.Color = config.IsMain and ColorSequence.new(Color3.fromRGB(12,12,12), Color3.fromRGB(240,240,240)) or ColorSequence.new(Color3.fromRGB(30,30,30), Color3.fromRGB(80,80,80))
+    
+    local ic = Instance.new("ImageLabel", btn)
+    ic.Size = UDim2.new(0, 18, 0, 18)
+    ic.AnchorPoint = Vector2.new(0.5, 0.5)
+    ic.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ic.BackgroundTransparency = 1
+    ic.Image = self.Lucide[config.Icon] or ""
+    ic.ImageColor3 = Color3.fromRGB(255,255,255)
+    ic.ZIndex = 8
+    
+    btn.MouseButton1Click:Connect(function() self:ToggleWindow(mascara) end)
+
+    -- Objeto da Janela (Métodos expostos)
+    local WindowElements = {}
+
+    function WindowElements:AddToggle(opt)
+        local card = Instance.new("Frame", container)
+        card.Size = UDim2.new(0, opt.Width or 340, 0, opt.Height or 50)
+        card.BackgroundColor3 = Color3.fromRGB(22, 22, 25)
+        card.ZIndex = 12
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8)
+        Instance.new("UIStroke", card).Color = Color3.fromRGB(45, 45, 50)
+
+        local lblTitulo = Instance.new("TextLabel", card)
+        lblTitulo.Size = UDim2.new(1, -40, 0, 15)
+        lblTitulo.Position = UDim2.new(0, 10, 0, 6)
+        lblTitulo.BackgroundTransparency = 1
+        lblTitulo.Text = opt.Title
+        lblTitulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+        lblTitulo.FontFace = UILib.Font
+        lblTitulo.TextSize = 14
+        lblTitulo.TextXAlignment = Enum.TextXAlignment.Left
+        lblTitulo.ZIndex = 13
+
+        local btnToggle = Instance.new("TextButton", card)
+        btnToggle.Size = UDim2.new(0, 28, 0, 16)
+        btnToggle.AnchorPoint = Vector2.new(1, 1)
+        btnToggle.Position = UDim2.new(1, -8, 1, -8)
+        btnToggle.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+        btnToggle.Text = ""
+        btnToggle.ZIndex = 14
+        Instance.new("UICorner", btnToggle).CornerRadius = UDim.new(1, 0)
+        
+        local circle = Instance.new("Frame", btnToggle)
+        circle.Size = UDim2.new(0, 12, 0, 12)
+        circle.AnchorPoint = Vector2.new(0, 0.5)
+        circle.Position = UDim2.new(0, 2, 0.5, 0)
+        circle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+        circle.ZIndex = 15
+        Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
+
+        local state = opt.Default or false
+        local function updateVisual()
+            TweenService:Create(btnToggle, TweenInfo.new(0.2), {BackgroundColor3 = state and Color3.fromRGB(70, 200, 70) or Color3.fromRGB(40, 40, 45)}):Play()
+            TweenService:Create(circle, TweenInfo.new(0.2), {Position = state and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)}):Play()
+        end
+        updateVisual()
+
+        btnToggle.MouseButton1Click:Connect(function()
+            state = not state
+            updateVisual()
+            if opt.Callback then opt.Callback(state) end
+        end)
+        
+        -- Retorna os métodos para atualizar externamente
+        return {
+            Set = function(v) state = v; updateVisual() end,
+            Get = function() return state end
+        }
+    end
+
+    function WindowElements:AddDropdown(opt)
+        local card = Instance.new("Frame", container)
+        card.Size = UDim2.new(0, 340, 0, 55)
+        card.BackgroundColor3 = Color3.fromRGB(22, 22, 25)
+        card.ZIndex = 12
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+        Instance.new("UIStroke", card).Color = Color3.fromRGB(45, 45, 50)
+
+        local selectionBtn = Instance.new("TextButton", card)
+        selectionBtn.Size = UDim2.new(1, -24, 0, 22)
+        selectionBtn.Position = UDim2.new(0, 12, 0, 26)
+        selectionBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+        selectionBtn.Text = "  " .. opt.Title
+        selectionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        selectionBtn.FontFace = UILib.Font
+        selectionBtn.TextSize = 15
+        selectionBtn.TextXAlignment = Enum.TextXAlignment.Left
+        selectionBtn.ZIndex = 14
+
+        local aberto = false
+        selectionBtn.MouseButton1Click:Connect(function()
+            -- Lógica simplificada de Dropdown (Você pode aprimorar a GUI gerada aqui)
+            if opt.Callback then opt.Callback(opt.Options[1]) end -- Dispara primeira opção provisoriamente
+        end)
+    end
+
+    function WindowElements:AddLabel(text)
+        local lbl = Instance.new("TextLabel", container)
+        lbl.Size = UDim2.new(0, 340, 0, 20)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = Color3.fromRGB(180, 180, 180)
+        lbl.FontFace = UILib.Font
+        lbl.TextSize = 14
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.ZIndex = 12
+    end
+    
+    function WindowElements:AddStatsCard(title)
+        local wrapper = Instance.new("Frame", container)
+        wrapper.Size = UDim2.new(0, 340, 0, 50)
+        wrapper.BackgroundTransparency = 1
+        wrapper.ZIndex = 12
+        
+        local st = Instance.new("TextLabel", wrapper)
+        st.Size = UDim2.new(1, 0, 0, 16)
+        st.BackgroundTransparency = 1
+        st.Text = title
+        st.TextColor3 = Color3.fromRGB(150, 150, 150)
+        st.FontFace = UILib.Font
+        st.TextSize = 13
+        st.TextXAlignment = Enum.TextXAlignment.Left
+        st.ZIndex = 13
+
+        local box = Instance.new("Frame", wrapper)
+        box.Size = UDim2.new(1, 0, 0, 30)
+        box.Position = UDim2.new(0, 0, 0, 20)
+        box.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+        box.ZIndex = 13
+        Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+        
+        local v = Instance.new("TextLabel", box)
+        v.Size = UDim2.new(1, -20, 1, 0)
+        v.Position = UDim2.new(0, 10, 0, 0)
+        v.BackgroundTransparency = 1
+        v.Text = "..."
+        v.TextColor3 = Color3.fromRGB(255, 255, 255)
+        v.Font = Enum.Font.GothamBold
+        v.TextSize = 16
+        v.TextXAlignment = Enum.TextXAlignment.Left
+        v.ZIndex = 14
+
+        return function(newText)
+            v.Text = tostring(newText)
+        end
+    end
+
+    return WindowElements
+end
+
+return UILib
