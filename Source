@@ -24,27 +24,34 @@ local LayoutOrderCount = 0
 local WindowConfig = {}
 
 local function UpdateToolbarWidth()
-    if not Toolbar then return end
+    if not Toolbar or not DockContainer then return end
     
     local dockWidth = DockContainer.Size.X.Offset
-    local expandBtnWidth = 32
     local infoWidth = IsExpanded and 120 or 0
-    local padding = 16 
+    -- Se estiver expandido, adicionamos espaço extra para a Info (incluindo o Padding do UIListLayout)
+    local gap = IsExpanded and 8 or 0 
+    local totalWidth = dockWidth + gap + infoWidth + 16 -- 16 é o padding lateral das bordas
 
-    local totalWidth = dockWidth + padding + expandBtnWidth
     if IsExpanded then
-        totalWidth = totalWidth + infoWidth
+        InfoContainer.Visible = true
     end
-    totalWidth = totalWidth + 16 -- padding interno
 
     TweenService:Create(Toolbar, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         Size = UDim2.new(0, totalWidth, 0, 45)
     }):Play()
 
     if InfoContainer then
-        TweenService:Create(InfoContainer, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        local tw = TweenService:Create(InfoContainer, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, infoWidth, 1, 0)
-        }):Play()
+        })
+        tw:Play()
+        
+        -- Esconde completamente para o UIListLayout não dar espaçamento extra
+        if not IsExpanded then
+            tw.Completed:Connect(function()
+                if not IsExpanded then InfoContainer.Visible = false end
+            end)
+        end
     end
 end
 
@@ -70,7 +77,7 @@ local function ToggleWindow(alvo)
 end
 
 -- ==============================================
--- CLASSE WINDOW (Nova função principal)
+-- CLASSE WINDOW
 -- ==============================================
 function TopPlusUi:CreateWindow(config)
     if Initialized then return self end
@@ -88,7 +95,6 @@ function TopPlusUi:CreateWindow(config)
         CoreGui.TopPlusUI:Destroy()
     end
 
-    -- Definição de Tema
     local bgColor = WindowConfig.Theme == "Light" and Color3.fromRGB(240, 240, 240) or Color3.fromRGB(15, 15, 15)
     local strokeColor = WindowConfig.Theme == "Light" and Color3.fromRGB(200, 200, 200) or Color3.fromRGB(45, 45, 45)
     local textColor = WindowConfig.Theme == "Light" and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
@@ -115,7 +121,7 @@ function TopPlusUi:CreateWindow(config)
     Toolbar.BackgroundColor3 = bgColor
     Toolbar.BackgroundTransparency = bgAlpha
     Toolbar.ZIndex = 5
-    Toolbar.ClipsDescendants = false 
+    Toolbar.ClipsDescendants = false -- Permite que as setas fiquem visíveis para fora
     Instance.new("UICorner", Toolbar).CornerRadius = UDim.new(0, 12)
     Instance.new("UIStroke", Toolbar).Color = strokeColor
 
@@ -144,34 +150,18 @@ function TopPlusUi:CreateWindow(config)
     dockLayout.Padding = UDim.new(0, 8)
     dockLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    -- Sincroniza o tamanho do Dock automaticamente
     dockLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         DockContainer.Size = UDim2.new(0, dockLayout.AbsoluteContentSize.X, 1, 0)
         UpdateToolbarWidth()
     end)
 
-    -- Botão de Expandir Header (Seta da Direita)
-    ExpandBtn = Instance.new("ImageButton", MainContent)
-    ExpandBtn.Size = UDim2.new(0, 32, 0, 32)
-    ExpandBtn.BackgroundColor3 = WindowConfig.Theme == "Light" and Color3.fromRGB(220, 220, 220) or Color3.fromRGB(30, 30, 30)
-    ExpandBtn.BackgroundTransparency = bgAlpha
-    ExpandBtn.LayoutOrder = 2
-    Instance.new("UICorner", ExpandBtn).CornerRadius = UDim.new(0, 8)
-    
-    local ExpandIcon = Instance.new("ImageLabel", ExpandBtn)
-    ExpandIcon.Size = UDim2.new(0, 18, 0, 18)
-    ExpandIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-    ExpandIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
-    ExpandIcon.BackgroundTransparency = 1
-    ExpandIcon.Image = Icons["chevron-right"] or ""
-    ExpandIcon.ImageColor3 = textColor
-
-    -- Container de Info (Autor e Hub)
+    -- Container de Info (Autor e Hub - Fica DENTRO da UI, mas oculto inicialmente)
     InfoContainer = Instance.new("Frame", MainContent)
     InfoContainer.Size = UDim2.new(0, 0, 1, 0)
     InfoContainer.BackgroundTransparency = 1
     InfoContainer.ClipsDescendants = true
-    InfoContainer.LayoutOrder = 3
+    InfoContainer.Visible = false -- Fica invisível até clicar
+    InfoContainer.LayoutOrder = 2
 
     local InfoLayout = Instance.new("UIListLayout", InfoContainer)
     InfoLayout.FillDirection = Enum.FillDirection.Vertical
@@ -198,13 +188,23 @@ function TopPlusUi:CreateWindow(config)
     LblAuthor.TextSize = 11
     LblAuthor.TextXAlignment = Enum.TextXAlignment.Left
 
+    -- Seta da DIREITA (Fica FORA da UI)
+    ExpandBtn = Instance.new("ImageButton", Toolbar)
+    ExpandBtn.Size = UDim2.new(0, 24, 0, 24)
+    ExpandBtn.AnchorPoint = Vector2.new(0, 0.5)
+    ExpandBtn.Position = UDim2.new(1, 6, 0.5, 0) -- 6 pixels para fora da borda direita
+    ExpandBtn.BackgroundTransparency = 1
+    ExpandBtn.Image = Icons["chevron-right"] or ""
+    ExpandBtn.ImageColor3 = Color3.fromRGB(180, 180, 180)
+    ExpandBtn.ZIndex = 6
+
     ExpandBtn.MouseButton1Click:Connect(function()
         IsExpanded = not IsExpanded
-        ExpandIcon.Image = IsExpanded and Icons["chevron-left"] or Icons["chevron-right"]
+        ExpandBtn.Image = IsExpanded and Icons["chevron-left"] or Icons["chevron-right"]
         UpdateToolbarWidth()
     end)
 
-    -- Seta de Esconder UI Inteira (Fora da Toolbar)
+    -- Seta de ESCONDER UI (Seta de Cima)
     local BtnToggleBar = Instance.new("ImageButton", Toolbar)
     BtnToggleBar.Size = UDim2.new(0, 24, 0, 24)
     BtnToggleBar.AnchorPoint = Vector2.new(0.5, 1)
@@ -238,7 +238,6 @@ local TabClass = {}
 TabClass.__index = TabClass
 
 function TopPlusUi:Tab(options)
-    -- Fallback caso o CreateWindow não tenha sido chamado
     if not Initialized then
         self:CreateWindow({Title = "Hub", Author = "Unknown"})
     end
