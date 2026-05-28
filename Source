@@ -23,7 +23,6 @@ local IsExpanded = false
 local LayoutOrderCount = 0
 local WindowConfig = {}
 
--- Função corrigida de atualização de tamanho (Zero Bugs de Layout)
 local function UpdateToolbarWidth()
     if not Toolbar or not DockContainer or not InfoContainer then return end
     
@@ -31,7 +30,6 @@ local function UpdateToolbarWidth()
     local infoWidth = IsExpanded and 110 or 0
     local padding = IsExpanded and 8 or 0 
     
-    -- O tamanho total é apenas a Dock + O Info (se expandido) + Padding Interno
     local totalWidth = dockWidth + padding + infoWidth + 16
 
     if IsExpanded then
@@ -96,8 +94,6 @@ function TopPlusUi:CreateWindow(config)
 
     local bgColor = WindowConfig.Theme == "Light" and Color3.fromRGB(240, 240, 240) or Color3.fromRGB(15, 15, 15)
     local strokeColor = WindowConfig.Theme == "Light" and Color3.fromRGB(200, 200, 200) or Color3.fromRGB(45, 45, 45)
-    local textColor = WindowConfig.Theme == "Light" and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
-    local subTextColor = WindowConfig.Theme == "Light" and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(140, 140, 140)
     local bgAlpha = WindowConfig.Transparent and 0.25 or 0
 
     ScreenGui = Instance.new("ScreenGui")
@@ -114,20 +110,20 @@ function TopPlusUi:CreateWindow(config)
     Escurecer.ZIndex = 1
 
     Toolbar = Instance.new("Frame", ScreenGui)
-    Toolbar.Size = UDim2.new(0, 16, 0, 45) -- Tamanho base pequeno
+    Toolbar.Size = UDim2.new(0, 16, 0, 45) 
     Toolbar.AnchorPoint = Vector2.new(0.5, 1)
     Toolbar.Position = WindowConfig.ShowWindow and UDim2.new(0.5, 0, 1, -20) or UDim2.new(0.5, 0, 1, 60)
     Toolbar.BackgroundColor3 = bgColor
     Toolbar.BackgroundTransparency = bgAlpha
     Toolbar.ZIndex = 5
-    Toolbar.ClipsDescendants = false -- Setas precisam ficar para fora
+    Toolbar.ClipsDescendants = false 
     Instance.new("UICorner", Toolbar).CornerRadius = UDim.new(0, 12)
     Instance.new("UIStroke", Toolbar).Color = strokeColor
 
     MainContent = Instance.new("Frame", Toolbar)
     MainContent.Size = UDim2.new(1, 0, 1, 0)
     MainContent.BackgroundTransparency = 1
-    MainContent.ClipsDescendants = true -- Textos não vazam a barra
+    MainContent.ClipsDescendants = true 
     Instance.new("UICorner", MainContent).CornerRadius = UDim.new(0, 12)
     
     local layoutMain = Instance.new("UIListLayout", MainContent)
@@ -164,29 +160,31 @@ function TopPlusUi:CreateWindow(config)
 
     local InfoLayout = Instance.new("UIListLayout", InfoContainer)
     InfoLayout.FillDirection = Enum.FillDirection.Vertical
-    InfoLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    InfoLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right -- Alinhado à direita
     InfoLayout.VerticalAlignment = Enum.VerticalAlignment.Center
     InfoLayout.Padding = UDim.new(0, 2)
+    
+    local InfoPadding = Instance.new("UIPadding", InfoContainer)
+    InfoPadding.PaddingRight = UDim.new(0, 5) -- Padding na direita para não grudar na borda
 
     local LblTitle = Instance.new("TextLabel", InfoContainer)
     LblTitle.Size = UDim2.new(1, 0, 0, 16)
     LblTitle.BackgroundTransparency = 1
     LblTitle.Text = WindowConfig.Title
-    LblTitle.TextColor3 = textColor
+    LblTitle.TextColor3 = Color3.fromRGB(255, 255, 255) -- Letras brancas
     LblTitle.FontFace = FontUI
     LblTitle.TextSize = 15
-    LblTitle.TextXAlignment = Enum.TextXAlignment.Left
+    LblTitle.TextXAlignment = Enum.TextXAlignment.Right -- Texto alinhado à direita
 
     local LblAuthor = Instance.new("TextLabel", InfoContainer)
     LblAuthor.Size = UDim2.new(1, 0, 0, 12)
     LblAuthor.BackgroundTransparency = 1
     LblAuthor.Text = "by " .. WindowConfig.Author
-    LblAuthor.TextColor3 = subTextColor
+    LblAuthor.TextColor3 = Color3.fromRGB(220, 220, 220) -- Branco/Cinza claro
     LblAuthor.FontFace = FontUI
     LblAuthor.TextSize = 11
-    LblAuthor.TextXAlignment = Enum.TextXAlignment.Left
+    LblAuthor.TextXAlignment = Enum.TextXAlignment.Right -- Texto alinhado à direita
 
-    -- Seta da DIREITA (Fica FORA da UI)
     ExpandBtn = Instance.new("ImageButton", Toolbar)
     ExpandBtn.Size = UDim2.new(0, 24, 0, 24)
     ExpandBtn.AnchorPoint = Vector2.new(0, 0.5)
@@ -202,7 +200,6 @@ function TopPlusUi:CreateWindow(config)
         UpdateToolbarWidth()
     end)
 
-    -- Seta de ESCONDER UI (Seta de Cima)
     local BtnToggleBar = Instance.new("ImageButton", Toolbar)
     BtnToggleBar.Size = UDim2.new(0, 24, 0, 24)
     BtnToggleBar.AnchorPoint = Vector2.new(0.5, 1)
