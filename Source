@@ -5,7 +5,6 @@ local CoreGui = (type(gethui) == "function" and gethui()) or (pcall(function() r
 local TopPlusUi = {}
 TopPlusUi.__index = TopPlusUi
 
--- Fontes e Ícones
 local FONT_PATH = "rbxasset://fonts/families/AccanthisADFStd.json"
 local FontUI = Font.new(FONT_PATH, Enum.FontWeight.Bold, Enum.FontStyle.Normal)
 
@@ -22,6 +21,26 @@ local BarraOn = true
 local IsExpanded = false
 local LayoutOrderCount = 0
 local WindowConfig = {}
+local AllTabs = {} -- Nova tabela para controlar as cores das abas
+
+-- Sistema de Highlight das Abas (Arruma o Bug do Gradiente)
+local function UpdateTabVisuals(activeBtn)
+    for _, tab in ipairs(AllTabs) do
+        if tab.Button == activeBtn then
+            -- Aba Ativa: Aplica a cor customizada
+            if typeof(tab.Color) == "ColorSequence" then
+                tab.Gradient.Color = tab.Color
+            else
+                local c = typeof(tab.Color) == "Color3" and tab.Color or Color3.fromRGB(255, 255, 255)
+                local darker = Color3.new(c.R * 0.3, c.G * 0.3, c.B * 0.3)
+                tab.Gradient.Color = ColorSequence.new(darker, c)
+            end
+        else
+            -- Aba Inativa: Fica escura
+            tab.Gradient.Color = ColorSequence.new(Color3.fromRGB(20, 20, 20), Color3.fromRGB(60, 60, 60))
+        end
+    end
+end
 
 local function UpdateToolbarWidth()
     if not Toolbar or not DockContainer or not InfoContainer then return end
@@ -52,15 +71,18 @@ local function UpdateToolbarWidth()
     end
 end
 
-local function ToggleWindow(alvo)
+local function ToggleWindow(alvo, btnReferencia)
     local anim = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     if JanelaAberta == alvo then
+        -- Fechando a UI
         TweenService:Create(Escurecer, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
         local tw = TweenService:Create(alvo, anim, {Size = UDim2.new(0, 0, 0, 0)})
         tw:Play()
         tw.Completed:Connect(function() alvo.Visible = false end)
         JanelaAberta = nil
+        UpdateTabVisuals(nil) -- Apaga todas as abas
     else
+        -- Abrindo uma nova UI
         if JanelaAberta then 
             JanelaAberta.Visible = false
             JanelaAberta.Size = UDim2.new(0, 0, 0, 0) 
@@ -70,6 +92,7 @@ local function ToggleWindow(alvo)
         TweenService:Create(Escurecer, TweenInfo.new(0.3), {BackgroundTransparency = WindowConfig.Transparent and 0.4 or 0.6}):Play()
         local alturaReal = alvo:GetChildren()[1].Size.Y.Offset
         TweenService:Create(alvo, anim, {Size = UDim2.new(0, 380, 0, alturaReal)}):Play()
+        UpdateTabVisuals(btnReferencia) -- Acende a aba certa
     end
 end
 
@@ -79,6 +102,7 @@ end
 function TopPlusUi:CreateWindow(config)
     if Initialized then return self end
     Initialized = true
+    AllTabs = {}
 
     WindowConfig = {
         Title = config.Title or "Hub",
@@ -160,30 +184,30 @@ function TopPlusUi:CreateWindow(config)
 
     local InfoLayout = Instance.new("UIListLayout", InfoContainer)
     InfoLayout.FillDirection = Enum.FillDirection.Vertical
-    InfoLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right -- Alinhado à direita
+    InfoLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right 
     InfoLayout.VerticalAlignment = Enum.VerticalAlignment.Center
     InfoLayout.Padding = UDim.new(0, 2)
     
     local InfoPadding = Instance.new("UIPadding", InfoContainer)
-    InfoPadding.PaddingRight = UDim.new(0, 5) -- Padding na direita para não grudar na borda
+    InfoPadding.PaddingRight = UDim.new(0, 5)
 
     local LblTitle = Instance.new("TextLabel", InfoContainer)
     LblTitle.Size = UDim2.new(1, 0, 0, 16)
     LblTitle.BackgroundTransparency = 1
     LblTitle.Text = WindowConfig.Title
-    LblTitle.TextColor3 = Color3.fromRGB(255, 255, 255) -- Letras brancas
+    LblTitle.TextColor3 = Color3.fromRGB(255, 255, 255) 
     LblTitle.FontFace = FontUI
     LblTitle.TextSize = 15
-    LblTitle.TextXAlignment = Enum.TextXAlignment.Right -- Texto alinhado à direita
+    LblTitle.TextXAlignment = Enum.TextXAlignment.Right 
 
     local LblAuthor = Instance.new("TextLabel", InfoContainer)
     LblAuthor.Size = UDim2.new(1, 0, 0, 12)
     LblAuthor.BackgroundTransparency = 1
     LblAuthor.Text = "by " .. WindowConfig.Author
-    LblAuthor.TextColor3 = Color3.fromRGB(220, 220, 220) -- Branco/Cinza claro
+    LblAuthor.TextColor3 = Color3.fromRGB(255, 255, 255) 
     LblAuthor.FontFace = FontUI
     LblAuthor.TextSize = 11
-    LblAuthor.TextXAlignment = Enum.TextXAlignment.Right -- Texto alinhado à direita
+    LblAuthor.TextXAlignment = Enum.TextXAlignment.Right 
 
     ExpandBtn = Instance.new("ImageButton", Toolbar)
     ExpandBtn.Size = UDim2.new(0, 24, 0, 24)
@@ -191,7 +215,7 @@ function TopPlusUi:CreateWindow(config)
     ExpandBtn.Position = UDim2.new(1, 6, 0.5, 0)
     ExpandBtn.BackgroundTransparency = 1
     ExpandBtn.Image = Icons["chevron-right"] or ""
-    ExpandBtn.ImageColor3 = Color3.fromRGB(180, 180, 180)
+    ExpandBtn.ImageColor3 = Color3.fromRGB(255, 255, 255) 
     ExpandBtn.ZIndex = 6
 
     ExpandBtn.MouseButton1Click:Connect(function()
@@ -206,7 +230,7 @@ function TopPlusUi:CreateWindow(config)
     BtnToggleBar.Position = UDim2.new(0.5, 0, 0, -6)
     BtnToggleBar.BackgroundTransparency = 1
     BtnToggleBar.Image = Icons["chevron-down"] or ""
-    BtnToggleBar.ImageColor3 = Color3.fromRGB(180, 180, 180)
+    BtnToggleBar.ImageColor3 = Color3.fromRGB(255, 255, 255) 
     BtnToggleBar.ZIndex = 6
 
     BarraOn = WindowConfig.ShowWindow
@@ -219,7 +243,7 @@ function TopPlusUi:CreateWindow(config)
             Position = BarraOn and UDim2.new(0.5, 0, 1, -20) or UDim2.new(0.5, 0, 1, 60)
         }):Play()
         if not BarraOn and JanelaAberta then 
-            ToggleWindow(JanelaAberta) 
+            ToggleWindow(JanelaAberta, nil) 
         end
     end)
 
@@ -242,10 +266,10 @@ function TopPlusUi:Tab(options)
     local titulo = options.Title or "Tab"
     local icone = options.Icon or "layout-grid"
     local alturaJanela = options.Height or 350 
+    local corAba = options.Color or Color3.fromRGB(255, 255, 255) -- Cor Customizada
     
     local winBgColor = WindowConfig.Theme == "Light" and Color3.fromRGB(240, 240, 240) or Color3.fromRGB(18, 18, 18)
     local winStrokeColor = WindowConfig.Theme == "Light" and Color3.fromRGB(200, 200, 200) or Color3.fromRGB(50, 50, 50)
-    local textColor = WindowConfig.Theme == "Light" and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
 
     local btn = Instance.new("TextButton", DockContainer)
     btn.Size = UDim2.new(0, 32, 0, 32)
@@ -257,7 +281,7 @@ function TopPlusUi:Tab(options)
     
     local grad = Instance.new("UIGradient", btn)
     grad.Rotation = 45
-    grad.Color = LayoutOrderCount == 1 and ColorSequence.new(Color3.fromRGB(12,12,12), Color3.fromRGB(240,240,240)) or ColorSequence.new(Color3.fromRGB(30,30,30), Color3.fromRGB(80,80,80))
+    -- A cor agora é controlada pelo UpdateTabVisuals
     
     local ic = Instance.new("ImageLabel", btn)
     ic.Size = UDim2.new(0, 18, 0, 18)
@@ -267,6 +291,14 @@ function TopPlusUi:Tab(options)
     ic.Image = Icons[icone] or ""
     ic.ImageColor3 = Color3.fromRGB(255,255,255)
     ic.ZIndex = 8
+
+    -- Adiciona na tabela de abas
+    table.insert(AllTabs, {
+        Button = btn,
+        Gradient = grad,
+        Color = corAba
+    })
+    UpdateTabVisuals(nil) -- Inicialmente inativa
 
     local mascara = Instance.new("Frame", ScreenGui)
     mascara.AnchorPoint = Vector2.new(0.5, 1)
@@ -291,7 +323,7 @@ function TopPlusUi:Tab(options)
     tl.Size = UDim2.new(1, 0, 0, 45)
     tl.BackgroundTransparency = 1
     tl.Text = titulo
-    tl.TextColor3 = textColor
+    tl.TextColor3 = Color3.fromRGB(255, 255, 255) 
     tl.FontFace = FontUI
     tl.TextSize = 22
     tl.ZIndex = 11
@@ -313,7 +345,7 @@ function TopPlusUi:Tab(options)
         container.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
     end)
 
-    btn.MouseButton1Click:Connect(function() ToggleWindow(mascara) end)
+    btn.MouseButton1Click:Connect(function() ToggleWindow(mascara, btn) end)
 
     local TabData = {
         Container = container,
@@ -347,7 +379,7 @@ function TabClass:Button(options)
     lblTitulo.Position = UDim2.new(0, 10, 0, 8)
     lblTitulo.BackgroundTransparency = 1
     lblTitulo.Text = options.Title or "Button"
-    lblTitulo.TextColor3 = isLight and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
+    lblTitulo.TextColor3 = Color3.fromRGB(255, 255, 255) 
     lblTitulo.FontFace = FontUI
     lblTitulo.TextSize = 14
     lblTitulo.TextXAlignment = Enum.TextXAlignment.Left
@@ -358,7 +390,7 @@ function TabClass:Button(options)
     lblDesc.Position = UDim2.new(0, 10, 0, 28)
     lblDesc.BackgroundTransparency = 1
     lblDesc.Text = options.Desc or ""
-    lblDesc.TextColor3 = isLight and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(140, 140, 140)
+    lblDesc.TextColor3 = Color3.fromRGB(255, 255, 255) 
     lblDesc.FontFace = FontUI
     lblDesc.TextSize = 12
     lblDesc.TextXAlignment = Enum.TextXAlignment.Left
@@ -370,7 +402,7 @@ function TabClass:Button(options)
     ic.Position = UDim2.new(1, -10, 0.5, 0)
     ic.BackgroundTransparency = 1
     ic.Image = Icons["mouse-pointer-click"]
-    ic.ImageColor3 = isLight and Color3.fromRGB(120, 120, 120) or Color3.fromRGB(180, 180, 180)
+    ic.ImageColor3 = Color3.fromRGB(255, 255, 255) 
     ic.ZIndex = 13
 
     card.MouseEnter:Connect(function() TweenService:Create(stroke, TweenInfo.new(0.2), {Color = isLight and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(80, 80, 85)}):Play() end)
@@ -413,7 +445,7 @@ function TabClass:Toggle(options)
         ic.Position = UDim2.new(0, 10, 0, 10)
         ic.BackgroundTransparency = 1
         ic.Image = Icons[options.Icon] or ""
-        ic.ImageColor3 = isLight and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(200, 200, 200)
+        ic.ImageColor3 = Color3.fromRGB(255, 255, 255) 
         ic.ZIndex = 13
     end
 
@@ -422,7 +454,7 @@ function TabClass:Toggle(options)
     lblTitulo.Position = UDim2.new(0, textOffset, 0, 10)
     lblTitulo.BackgroundTransparency = 1
     lblTitulo.Text = options.Title or "Toggle"
-    lblTitulo.TextColor3 = isLight and Color3.fromRGB(20, 20, 20) or Color3.fromRGB(255, 255, 255)
+    lblTitulo.TextColor3 = Color3.fromRGB(255, 255, 255) 
     lblTitulo.FontFace = FontUI
     lblTitulo.TextSize = 14
     lblTitulo.TextXAlignment = Enum.TextXAlignment.Left
@@ -433,7 +465,7 @@ function TabClass:Toggle(options)
     lblDesc.Position = UDim2.new(0, 10, 0, 28)
     lblDesc.BackgroundTransparency = 1
     lblDesc.Text = options.Desc or ""
-    lblDesc.TextColor3 = isLight and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(140, 140, 140)
+    lblDesc.TextColor3 = Color3.fromRGB(255, 255, 255) 
     lblDesc.FontFace = FontUI
     lblDesc.TextSize = 11
     lblDesc.TextWrapped = true
@@ -454,7 +486,7 @@ function TabClass:Toggle(options)
     circle.Size = UDim2.new(0, 14, 0, 14)
     circle.AnchorPoint = Vector2.new(0, 0.5)
     circle.Position = state and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-    circle.BackgroundColor3 = isLight and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(220, 220, 220)
+    circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255) 
     circle.ZIndex = 15
     Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
 
