@@ -3,7 +3,7 @@ idk, Someone asked for this, so I made a library. You can use it however you wan
 
 # Loadstring
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/dyxreign/TopPlus-UI/refs/heads/main/Source"))()
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/dyxreign/TopPlus-UI/refs/heads/main/Source"))()
 ```
 
 # Window
