@@ -43,3 +43,5 @@ Tab:Button({
 ```lua
 UI:SetFont("rbxasset://...")
 ```
+
+## Yes, I know there's almost nothing there, but I'll add more soon when I have time. You can create a modified version or something like that. I made this library quickly, So please excuse me if it looks bad.
