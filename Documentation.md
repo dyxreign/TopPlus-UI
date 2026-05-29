@@ -23,7 +23,7 @@ local Window = UI:CreateWindow({
 local Tab = Window:Tab({
     Title = "Main",
     Icon = "home", 
-    Height "250",
+    Height = 450,
     Color = Color3.fromRGB(50, 150, 255)
 })
 ```
