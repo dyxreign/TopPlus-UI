@@ -38,3 +38,8 @@ Tab:Button({
     end
 })
 ```
+
+# Set a custom Font
+```lua
+UI:SetFont("rbxasset://...")
+```
