@@ -10,6 +10,7 @@ idk, Someone asked for this, so I made a library. You can use it however you wan
     Author = "by nyx",
     Transparent = false,
     Theme = "Dark" -- dont have others themes xd
+    
 })``
 
 
