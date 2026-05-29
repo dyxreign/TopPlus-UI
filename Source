@@ -6,8 +6,7 @@ local TopPlusUi = {}
 TopPlusUi.__index = TopPlusUi
 
 local AllTextElements = {}
-local FONT_PATH = "rbxasset://fonts/families/AccanthisADFStd.json"
-local FontUI = Font.new(FONT_PATH, Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+local FontUI = Font.new("rbxasset://fonts/families/AccanthisADFStd.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
 
 function TopPlusUi:SetFont(fontAsset)
     if typeof(fontAsset) == "string" then
@@ -69,11 +68,9 @@ local function ToggleWindow(target, windowHeight)
     
     if CurrentWindow == target then
         TweenService:Create(Overlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundTransparency = 1}):Play()
-        
         if innerFrame then
             local stroke = innerFrame:FindFirstChildOfClass("UIStroke")
             if stroke then TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 1}):Play() end
-            
             local closeTween = TweenService:Create(innerFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(0, 380, 0, windowHeight - 30)
@@ -90,23 +87,18 @@ local function ToggleWindow(target, windowHeight)
             if oldWindow then oldWindow.BackgroundTransparency = 1 end
             CurrentWindow.Visible = false
         end
-        
         target.Size = UDim2.new(0, 380, 0, windowHeight)
         target.Visible = true
         CurrentWindow = target
-        
         TweenService:Create(Overlay, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {BackgroundTransparency = WindowConfig.Transparent and 0.4 or 0.6}):Play()
-        
         if innerFrame then
             innerFrame.Size = UDim2.new(0, 380, 0, windowHeight - 30)
             innerFrame.BackgroundTransparency = 1
-            
             local transAlpha = WindowConfig.Transparent and 0.15 or 0
             TweenService:Create(innerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
                 BackgroundTransparency = transAlpha,
                 Size = UDim2.new(0, 380, 0, windowHeight)
             }):Play()
-            
             local stroke = innerFrame:FindFirstChildOfClass("UIStroke")
             if stroke then 
                 stroke.Transparency = 1
@@ -432,4 +424,3 @@ function TabClass:Dropdown(options)
 end
 
 return TopPlusUi
-
