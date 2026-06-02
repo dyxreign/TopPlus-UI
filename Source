@@ -772,22 +772,6 @@ function TabClass:Dropdown(options)
     return { Set = function(v) currentValue = v; selectBtn.Text = "  " .. v end, Get = function() return currentValue end }
 end
 
-local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local CoreGui = (type(gethui) == "function" and gethui()) or (pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui")) or Players.LocalPlayer:WaitForChild("PlayerGui")
-
-local TopPlusUi = {}
-TopPlusUi.__index = TopPlusUi
-
-local AllTextElements = {}
-local FontUI = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
-local FontTitle = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-
-local successIcons, Lucide = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua"))()
-end)
-local Icons = (successIcons and type(Lucide) == "table") and Lucide or setmetatable({}, {__index = function() return "" end})
-
 -- Notification System Setup
 local NotifyScreen = Instance.new("ScreenGui", CoreGui)
 NotifyScreen.Name = "TopPlusNotifyScreen"
