@@ -1,6 +1,13 @@
 ## TopUI Plus
 idk, Someone asked for this, so I made a library. You can use it however you want, but please remember to give credits.
 
+## Changlogs
+06/01/2026
+[+] Section
+[+] Dropdown
+[+] Input
+[+] Paragraph
+
 # Loadstring
 ```lua
 local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/dyxreign/TopPlus-UI/refs/heads/main/Source"))()
