@@ -49,6 +49,25 @@ Tab:Button({
     end
 })
 ```
+## Toggle
+```lua
+Tab:Toggle({
+    Title = "Toggle",
+    Desc = "Toggle Description",
+    Icon = "bird",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state) 
+        print("State: " .. tostring(state))
+    end
+})
+```
+## Selection
+```lua
+Tab:Section({ 
+    Title = "Section",
+})
+```
 
 # Set a custom Font
 ```lua
