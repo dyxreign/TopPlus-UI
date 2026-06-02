@@ -772,4 +772,70 @@ function TabClass:Dropdown(options)
     return { Set = function(v) currentValue = v; selectBtn.Text = "  " .. v end, Get = function() return currentValue end }
 end
 
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local CoreGui = (type(gethui) == "function" and gethui()) or (pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui")) or Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local TopPlusUi = {}
+TopPlusUi.__index = TopPlusUi
+
+local AllTextElements = {}
+local FontUI = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+local FontTitle = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+
+local successIcons, Lucide = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua"))()
+end)
+local Icons = (successIcons and type(Lucide) == "table") and Lucide or setmetatable({}, {__index = function() return "" end})
+
+-- Notification System Setup
+local NotifyScreen = Instance.new("ScreenGui", CoreGui)
+NotifyScreen.Name = "TopPlusNotifyScreen"
+NotifyScreen.IgnoreGuiInset = true
+local NotifyContainer = Instance.new("Frame", NotifyScreen)
+NotifyContainer.Size = UDim2.new(0, 320, 1, -40); NotifyContainer.Position = UDim2.new(1, -20, 0, 20); NotifyContainer.AnchorPoint = Vector2.new(1, 0); NotifyContainer.BackgroundTransparency = 1
+local ListLayout = Instance.new("UIListLayout", NotifyContainer)
+ListLayout.FillDirection = Enum.FillDirection.Vertical; ListLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom; ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right; ListLayout.Padding = UDim.new(0, 10)
+
+function TopPlusUi:Notify(options)
+    local titleText = options.Title or "Notification"; local descText = options.Desc or ""; local duration = options.Duration or 5; local noticeColor = options.Color or Color3.fromRGB(0, 150, 255); local iconName = options.Icon; local buttons = options.Buttons or {}; local hasButtons = #buttons > 0
+    local cardHeight = hasButtons and 100 or 65
+    local wrapper = Instance.new("Frame", NotifyContainer); wrapper.Size = UDim2.new(0, 300, 0, cardHeight); wrapper.BackgroundTransparency = 1
+    local card = Instance.new("CanvasGroup", wrapper); card.Size = UDim2.new(1, 0, 1, 0); card.Position = UDim2.new(0, 50, 0, 0); card.BackgroundColor3 = Color3.fromRGB(22, 22, 24); card.GroupTransparency = 1
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8); Instance.new("UIStroke", card).Color = Color3.fromRGB(45, 45, 50)
+    
+    local textRightOffset = 12
+    if iconName and Icons[iconName] then
+        textRightOffset = 38
+        local ic = Instance.new("ImageLabel", card); ic.Size = UDim2.new(0, 20, 0, 20); ic.AnchorPoint = Vector2.new(1, 0); ic.Position = UDim2.new(1, -12, 0, 12); ic.BackgroundTransparency = 1; ic.Image = Icons[iconName]; ic.ImageColor3 = noticeColor
+    end
+    
+    local lblTitle = Instance.new("TextLabel", card); lblTitle.Size = UDim2.new(1, -(textRightOffset + 12), 0, 18); lblTitle.Position = UDim2.new(0, 12, 0, 12); lblTitle.BackgroundTransparency = 1; lblTitle.Text = titleText; lblTitle.TextColor3 = Color3.fromRGB(255, 255, 255); lblTitle.FontFace = FontTitle; lblTitle.TextSize = 13; lblTitle.TextXAlignment = Enum.TextXAlignment.Left
+    local lblDesc = Instance.new("TextLabel", card); lblDesc.Size = UDim2.new(1, -(textRightOffset + 12), 0, 30); lblDesc.Position = UDim2.new(0, 12, 0, 30); lblDesc.BackgroundTransparency = 1; lblDesc.Text = descText; lblDesc.TextColor3 = Color3.fromRGB(170, 170, 175); lblDesc.FontFace = FontUI; lblDesc.TextSize = 12; lblDesc.TextWrapped = true; lblDesc.TextXAlignment = Enum.TextXAlignment.Left; lblDesc.TextYAlignment = Enum.TextYAlignment.Top
+    
+    local progressBar = Instance.new("Frame", Instance.new("Frame", card)) -- Wrapper
+    progressBar.Parent.Size = UDim2.new(1, 0, 0, 2); progressBar.Parent.Position = UDim2.new(0, 0, 1, -2); progressBar.Parent.BackgroundColor3 = Color3.fromRGB(40, 40, 45); progressBar.Size = UDim2.new(1, 0, 1, 0); progressBar.BackgroundColor3 = noticeColor
+    
+    local isClosed = false
+    local function close() if isClosed then return end isClosed = true TweenService:Create(card, TweenInfo.new(0.3), {GroupTransparency = 1, Position = UDim2.new(0, 50, 0, 0)}):Play() task.delay(0.3, function() wrapper:Destroy() end) end
+    if hasButtons then
+        lblDesc.Size = UDim2.new(1, -24, 0, 20)
+        local btnContainer = Instance.new("Frame", card); btnContainer.Size = UDim2.new(1, -24, 0, 28); btnContainer.Position = UDim2.new(0, 12, 0, 58); btnContainer.BackgroundTransparency = 1
+        Instance.new("UIListLayout", btnContainer).FillDirection = Enum.FillDirection.Horizontal; Instance.new("UIListLayout", btnContainer).Padding = UDim.new(0, 6)
+        for _, b in ipairs(buttons) do
+            local btn = Instance.new("TextButton", btnContainer); btn.Size = UDim2.new(1/#buttons, -6, 1, 0); btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40); btn.Text = b.Title; btn.TextColor3 = Color3.fromRGB(240, 240, 240); btn.FontFace = FontUI; btn.TextSize = 12; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+            btn.MouseButton1Click:Connect(function() if b.Callback then task.spawn(b.Callback) end close() end)
+        end
+    end
+    TweenService:Create(card, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {GroupTransparency = 0, Position = UDim2.new(0, 0, 0, 0)}):Play()
+    TweenService:Create(progressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)}):Play()
+    task.delay(duration, close)
+end
+
+function TopPlusUi:SetFont(fontAsset)
+    if typeof(fontAsset) == "string" then FontUI = Font.new(fontAsset, Enum.FontWeight.Medium, Enum.FontStyle.Normal) FontTitle = Font.new(fontAsset, Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+    elseif typeof(fontAsset) == "Font" then FontUI = fontAsset FontTitle = fontAsset end
+    for _, txt in ipairs(AllTextElements) do pcall(function() txt.FontFace = FontUI end) end
+end
+
 return TopPlusUi
