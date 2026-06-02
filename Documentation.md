@@ -3,9 +3,13 @@ idk, Someone asked for this, so I made a library. You can use it however you wan
 
 ## Changlogs
 06/01/2026
+
 [+] Section
+
 [+] Dropdown
+
 [+] Input
+
 [+] Paragraph
 
 # Loadstring
